@@ -1,0 +1,218 @@
+<Window x:Class="WorkTree.Desktop.SparseWorktreeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="稀疏工作区" Width="930" Height="750" MinWidth="730" MinHeight="600"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock x:Name="Heading" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock x:Name="RepoText" Margin="0,4,0,12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+        </StackPanel>
+        <Grid x:Name="Editor" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel x:Name="CreateFields">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="工作区名称" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                        <TextBox x:Name="NameBox" AutomationProperties.Name="工作区名称" TextChanged="NameChanged" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <DockPanel Margin="0,0,0,4">
+                            <CheckBox x:Name="ExistingBranch" DockPanel.Dock="Right" Content="使用已有本地分支"
+                                      VerticalAlignment="Center" Checked="ModeChanged" Unchecked="ModeChanged" />
+                            <TextBlock Text="新分支名称" Style="{StaticResource FieldLabel}" Margin="0" />
+                        </DockPanel>
+                        <TextBox x:Name="BranchBox" AutomationProperties.Name="新分支名称" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="目标路径" Style="{StaticResource FieldLabel}" />
+                <TextBox x:Name="DestinationBox" AutomationProperties.Name="目标路径" />
+                <TextBlock x:Name="SourceLabel" Text="起始版本" Style="{StaticResource FieldLabel}" />
+                <Grid>
+                    <Button x:Name="SourceButton" Click="OpenSources" HorizontalContentAlignment="Stretch"
+                            AutomationProperties.Name="选择起始版本或已有分支">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="SourceFrame" Background="{StaticResource Surface}"
+                                        BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="5" Padding="9,6">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="⌄" Margin="8,0,0,0"
+                                                   Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{TemplateBinding Content}" TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="SourceFrame" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="SourceFrame" Property="Opacity" Value="0.5" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Popup x:Name="SourcePopup" PlacementTarget="{Binding ElementName=SourceButton}" Placement="Bottom"
+                           VerticalOffset="4" StaysOpen="False" AllowsTransparency="True" Opened="SourcesOpened">
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}"
+                                BorderThickness="1" CornerRadius="6" Padding="7"
+                                Width="{Binding ActualWidth, ElementName=SourceButton}" PreviewKeyDown="SourcePopupKeyDown">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBox x:Name="SourceSearch" TextChanged="SourceSearchChanged"
+                                             AutomationProperties.Name="搜索起始版本" />
+                                    <TextBlock Text="搜索分支、标签或提交入口" Margin="9,0" IsHitTestVisible="False"
+                                               VerticalAlignment="Center" Foreground="{StaticResource Muted}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=SourceSearch}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <ListBox x:Name="SourceResults" MaxHeight="246" BorderThickness="0" Margin="0,5,0,0"
+                                         PreviewMouseLeftButtonUp="ChooseSourceWithMouse"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="8,5" />
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="SourceSearchHint" Margin="7,4" Foreground="{StaticResource Muted}" FontSize="12" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
+                <DockPanel x:Name="CommitInput" Visibility="Collapsed" Margin="0,5,0,0">
+                    <Button DockPanel.Dock="Right" Content="读取目录" Margin="8,0,0,0" Click="ReadCommit" />
+                    <TextBox x:Name="CommitBox" AutomationProperties.Name="提交 ID 或 Git 引用" TextChanged="CommitChanged" />
+                </DockPanel>
+            </StackPanel>
+
+            <Grid Grid.Row="1" Margin="0,11,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,12,0">
+                    <TextBlock Text="目录范围" FontWeight="SemiBold" />
+                    <TextBlock x:Name="CommitText" Foreground="{StaticResource Muted}" FontSize="12"
+                               Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <DockPanel Grid.Column="1">
+                    <Button x:Name="ReuseButton" DockPanel.Dock="Right" Content="复用范围" Click="ReuseScope"
+                            Margin="8,0,0,0" />
+                    <ComboBox x:Name="ReuseSources" MinHeight="32" DisplayMemberPath="Label"
+                              AutomationProperties.Name="复用来源工作区" />
+                </DockPanel>
+            </Grid>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,7">
+                        <TextBox x:Name="DirectorySearch" TextChanged="SearchChanged" AutomationProperties.Name="搜索 Git 目录" />
+                        <TextBlock Text="搜索 Git 目录" VerticalAlignment="Center" Margin="9,0"
+                                   IsHitTestVisible="False" Foreground="{StaticResource Muted}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=DirectorySearch}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <TextBlock x:Name="SearchHint" DockPanel.Dock="Bottom" FontSize="12"
+                               Foreground="{StaticResource Muted}" Margin="0,5,0,0" TextWrapping="Wrap" />
+                    <Grid>
+                        <TreeView x:Name="DirectoryTree" BorderBrush="{StaticResource BorderColor}"
+                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                  TreeViewItem.Expanded="ExpandNode" AutomationProperties.Name="Git 目录树">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <CheckBox IsChecked="{Binding Included, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"
+                                              Content="{Binding Name}" ToolTip="{Binding Path}" Margin="0,3" />
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                        <ListBox x:Name="SearchResults" Visibility="Collapsed" BorderBrush="{StaticResource BorderColor}"
+                                 VirtualizingPanel.VirtualizationMode="Recycling"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Included, Mode=TwoWay}" IsEnabled="{Binding CanToggle}"
+                                              Content="{Binding Path}" ToolTip="{Binding Path}" Margin="0,3" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+                <DockPanel Grid.Column="2">
+                    <TextBlock x:Name="SelectionHeading" DockPanel.Dock="Top" Text="已选目录"
+                               FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <TextBlock DockPanel.Dock="Bottom" Margin="0,8,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource Muted}" FontSize="12"
+                               Text="勾选目录会包含整个子树。Cone 模式还保留根目录和祖先目录中的直接文件。取消全部勾选时仅保留根目录文件。" />
+                    <ListBox x:Name="SelectionList" BorderBrush="{StaticResource BorderColor}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,3" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Grid>
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,13,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ScrollViewer MaxHeight="92" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
+                <ContentControl x:Name="Feedback" Style="{StaticResource Feedback}" />
+            </ScrollViewer>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <Button x:Name="CloseButton" Content="关闭" IsCancel="True" Margin="0,0,8,0" />
+                <Button x:Name="SubmitButton" Content="创建工作区" Style="{StaticResource PrimaryButton}" Click="Submit"
+                        IsEnabled="False" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

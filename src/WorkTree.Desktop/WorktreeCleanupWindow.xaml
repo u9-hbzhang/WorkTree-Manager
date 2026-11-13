@@ -1,0 +1,68 @@
+<Window x:Class="WorkTree.Desktop.WorktreeCleanupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="工作区清理" Width="790" Height="590" MinWidth="620" MinHeight="490"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <Grid Margin="21">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,12">
+            <TextBlock x:Name="Heading" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock x:Name="TargetPath" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,5,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock x:Name="Summary" TextWrapping="Wrap" />
+            <StackPanel x:Name="BranchOptions" Margin="0,12,0,0">
+                <TextBlock x:Name="BranchLabel" Text="本地分支" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                <WrapPanel>
+                    <RadioButton x:Name="KeepBranch" Content="保留分支" IsChecked="True" Checked="BranchModeChanged" Margin="0,0,18,5" />
+                    <RadioButton x:Name="DeleteMergedBranch" Content="确认已合入后删除" Checked="BranchModeChanged"
+                                 IsEnabled="False" Margin="0,0,18,5" />
+                    <RadioButton x:Name="DiscardBranch" Content="直接丢弃分支" Checked="BranchModeChanged"
+                                 IsEnabled="False" Margin="0,0,0,5" />
+                </WrapPanel>
+                <StackPanel x:Name="MergeOptions" Visibility="Collapsed" Margin="0,5,0,0">
+                    <TextBlock Text="合入目标" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="保存并检查" Click="SaveMergeTarget" Margin="8,0,0,0"
+                                x:Name="SaveTargetButton" IsEnabled="False" />
+                        <ComboBox x:Name="MergeTargets" DisplayMemberPath="Label" MinHeight="32"
+                                  AutomationProperties.Name="当前仓库的合入目标"
+                                  SelectionChanged="MergeTargetChanged" />
+                    </DockPanel>
+                    <TextBlock x:Name="BranchStatus" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,5,0,0" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+        <DockPanel Grid.Row="2">
+            <TextBlock x:Name="ListHeading" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <ListBox x:Name="ImpactList" DisplayMemberPath="Label" BorderBrush="{StaticResource BorderColor}"
+                     VirtualizingPanel.VirtualizationMode="Recycling" AutomationProperties.Name="受影响的文件或登记" />
+        </DockPanel>
+        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+            <StackPanel x:Name="ConfirmationPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                <TextBlock TextWrapping="Wrap" Foreground="#8E4818">
+                    <Run Text="请输入「" /><Hyperlink Click="CopyConfirmationName" TextDecorations="Underline"
+                        Foreground="#8E4818" ToolTip="复制工作区名称" AutomationProperties.Name="复制工作区名称"><Run
+                        x:Name="ConfirmationName" /></Hyperlink><Run x:Name="ConfirmationHint" />
+                </TextBlock>
+                <TextBox x:Name="Confirmation" TextChanged="ConfirmationChanged" Margin="0,5,0,0"
+                         AutomationProperties.Name="输入工作区名称确认丢弃" />
+            </StackPanel>
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button x:Name="CloseButton" Content="取消" IsCancel="True" Margin="0,0,8,0" />
+                    <Button x:Name="RunButton" Content="删除工作区" IsEnabled="False" Click="Execute"
+                            Background="#AA392E" BorderBrush="#AA392E" Foreground="White" />
+                </StackPanel>
+                <ScrollViewer MaxHeight="80" VerticalScrollBarVisibility="Auto" Margin="0,0,10,0">
+                    <ContentControl x:Name="Feedback" Style="{StaticResource Feedback}" />
+                </ScrollViewer>
+            </DockPanel>
+        </StackPanel>
+    </Grid>
+</Window>

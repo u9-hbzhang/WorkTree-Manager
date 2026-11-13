@@ -1,0 +1,89 @@
+<Window x:Class="WorkTree.Desktop.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="设置 · WorkTree Manager" Width="675" Height="610" MinWidth="580" MinHeight="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" UseLayoutRounding="True">
+    <DockPanel Margin="18">
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <ContentControl x:Name="Validation" Style="{StaticResource Feedback}" Margin="0,0,0,8" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="取消" IsCancel="True" MinWidth="72" Margin="0,0,8,0" />
+                <Button x:Name="SaveButton" Content="保存设置" Style="{StaticResource PrimaryButton}" Click="Save" />
+            </StackPanel>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+            <TextBlock Text="Git 可执行文件" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="浏览…" Click="BrowseGit" Margin="8,0,0,0" />
+                <TextBox x:Name="GitPathBox" AutomationProperties.Name="Git 可执行文件路径" />
+            </DockPanel>
+            <TextBlock x:Name="GitHint" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,6,0,0" FontSize="12" />
+        </StackPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="快捷打开的开发工具" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="160" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="添加" Click="AddTool" Margin="0,0,7,0" />
+                        <Button Content="移除" Click="RemoveTool" />
+                    </StackPanel>
+                    <ListBox x:Name="ToolList" DisplayMemberPath="Name" AutomationProperties.Name="开发工具列表"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                </DockPanel>
+                <Grid Grid.Column="2">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedItem, ElementName=ToolList}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
+                        <StackPanel DataContext="{Binding SelectedItem, ElementName=ToolList}">
+                            <TextBlock Text="显示名称" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,0,0,4" />
+                            <TextBox x:Name="ToolNameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="开发工具名称" />
+                            <TextBlock Text="可执行文件" Style="{StaticResource FieldLabel}" />
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="浏览…" Click="BrowseTool" Margin="8,0,0,0" />
+                                <TextBox Text="{Binding Executable, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="开发工具可执行文件路径" />
+                            </DockPanel>
+                            <TextBlock Text="参数（每行一个）" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding ArgumentText, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="启动参数"
+                                     Height="82" AcceptsReturn="True" VerticalContentAlignment="Top"
+                                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
+                            <TextBlock Text="用 {worktree} 传入工作区路径；含空格的参数无需添加引号。"
+                                       TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock Text="添加工具后，可以从工作区详情直接打开它。"
+                               Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="6,10,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedItem, ElementName=ToolList}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

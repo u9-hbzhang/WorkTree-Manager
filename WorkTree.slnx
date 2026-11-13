@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/WorkTree.Core/WorkTree.Core.csproj" />
+  <Project Path="src/WorkTree.Git/WorkTree.Git.csproj" />
+  <Project Path="src/WorkTree.Desktop/WorkTree.Desktop.csproj" />
+  <Project Path="tests/WorkTree.Tests/WorkTree.Tests.csproj" />
+</Solution>
