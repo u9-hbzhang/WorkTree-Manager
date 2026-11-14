@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    if: "!github.event.deleted"
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ($env:GITHUB_EVENT_NAME -eq 'push') {
+              if ($env:REF_NAME -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*))?$') {
+                  throw 'Use a stable version tag such as v0.2 or v0.2.1.'
+              }
+              $version = $env:REF_NAME.Substring(1)
+              if ($version.Split('.').Count -eq 2) { $version += '.0' }
+              "value=$version" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Run tests
+        run: dotnet test ./WorkTree.slnx --configuration Release
+
+      - name: Build framework-dependent Windows package
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if ($env:PACKAGE_VERSION) {
+              ./scripts/Publish-Portable.ps1 -Version $env:PACKAGE_VERSION
+          } else {
+              ./scripts/Publish-Portable.ps1
+          }
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create $env:RELEASE_TAG ./artifacts/WorkTree-win-x64.zip `
+              --repo $env:GITHUB_REPOSITORY --verify-tag --title "WorkTree Manager $env:RELEASE_TAG" `
+              --notes 'Windows x64 便携包需要预装 .NET 10 Desktop Runtime（x64）。' --generate-notes

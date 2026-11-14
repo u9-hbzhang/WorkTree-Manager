@@ -1,11 +1,11 @@
-# WorkTree Manager v0.1
+# WorkTree Manager
 
 面向 Windows x64 的本地 Git 工作区管理工具。在一个窗口里查看多个仓库的 worktree，为大仓库按模块创建 cone 稀疏工作区，并在清理前预览影响。
 
 ## 下载和启动
 
 1. 安装 [Windows x64 .NET 10 Desktop Runtime](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 和 [Git for Windows 2.43 或更新版本](https://gitforwindows.org/)。
-2. 从 [v0.1 发布页](https://github.com/u9-hbzhang/WorkTree-Manager/releases/tag/v0.1) 下载 `WorkTree-win-x64.zip`，解压到当前用户可写的文件夹，双击 `WorkTree.exe`。便携包依赖本机的 .NET 10 Desktop Runtime。
+2. 从 [最新发布页](https://github.com/u9-hbzhang/WorkTree-Manager/releases/latest) 下载 `WorkTree-win-x64.zip`，解压到当前用户可写的文件夹，双击 `WorkTree.exe`。便携包依赖本机的 .NET 10 Desktop Runtime。
 3. 设置、列表缓存和日志保存在程序旁的 `data` 目录。升级时保留该目录，迁移电脑后可在仓库菜单中选择 **重新定位**。
 
 ## 查看和打开工作区
@@ -51,3 +51,14 @@ dotnet test .\WorkTree.slnx
 ```
 
 测试使用临时 Git 仓库。发布脚本生成 `artifacts\WorkTree-win-x64.zip`，其中包含 Windows x64 程序、说明和截图。构建需要 .NET 10 SDK。
+
+## 发布新版本
+
+在要发布的提交上创建并推送版本标签，例如：
+
+```powershell
+git tag -a v0.2 -m "WorkTree Manager v0.2"
+git push origin v0.2
+```
+
+GitHub Actions 会测试标签指向的提交。测试通过后，使用标签设置程序版本，生成不含 .NET 运行时的 ZIP，并发布到对应的 GitHub Release。支持 `v0.2` 和 `v0.2.1` 这类标签。也可以在 **Actions → Release → Run workflow** 手动验证测试和打包，手动运行只执行验证。
