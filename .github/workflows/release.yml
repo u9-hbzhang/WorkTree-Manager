@@ -62,6 +62,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          $notesFile = "./.github/release-notes/$env:RELEASE_TAG.md"
+          $notes = if (Test-Path -LiteralPath $notesFile -PathType Leaf) {
+              @('--notes-file', $notesFile)
+          } else {
+              @('--notes', 'Windows x64 便携包需要预装 .NET 10 Desktop Runtime（x64）。')
+          }
           gh release create $env:RELEASE_TAG ./artifacts/WorkTree-win-x64.zip `
               --repo $env:GITHUB_REPOSITORY --verify-tag --title "WorkTree Manager $env:RELEASE_TAG" `
-              --notes 'Windows x64 便携包需要预装 .NET 10 Desktop Runtime（x64）。' --generate-notes
+              @notes --generate-notes

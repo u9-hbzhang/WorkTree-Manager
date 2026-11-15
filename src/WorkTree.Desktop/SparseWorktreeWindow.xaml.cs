@@ -15,6 +15,7 @@ public partial class SparseWorktreeWindow : Window
     private readonly WorktreeEntry? _startingTree;
     private readonly SparseWorktreeService _service;
     private readonly WorktreeEntry[] _entries;
+    private readonly IReadOnlyList<string>? _explorerDirectories;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<string, string[]> _directoryCache = new(StringComparer.Ordinal);
     private BranchChoice[] _branches = [];
@@ -29,14 +30,17 @@ public partial class SparseWorktreeWindow : Window
     private bool _working;
     private bool _writing;
     private bool _closed;
+    private string[] _missingExplorerDirectories = [];
 
     internal SparseWorktreeWindow(RepositoryLocation repository, GitInstallation git, WorktreeEntry? selected,
-        WorktreeEntry? target, IEnumerable<WorktreeEntry> entries, IEnumerable<WorktreeEntry> reusable)
+        WorktreeEntry? target, IEnumerable<WorktreeEntry> entries, IEnumerable<WorktreeEntry> reusable,
+        IReadOnlyList<string>? explorerDirectories = null)
     {
         _repository = repository;
         _target = target;
         _startingTree = selected is { IsBare: false, IsPrunable: false } ? selected : null;
         _entries = entries.ToArray();
+        _explorerDirectories = explorerDirectories;
         _service = new SparseWorktreeService(git);
         InitializeComponent();
         Heading.Text = Title = target is null ? "创建 cone 稀疏工作区" : "调整稀疏范围";
@@ -311,7 +315,8 @@ public partial class SparseWorktreeWindow : Window
             _directoryCache[commit] = paths;
         }
         token.ThrowIfCancellationRequested();
-        var selected = _picker?.Selected ?? _originalScope?.Directories ?? [];
+        var selected = _picker is not null ? _picker.Selected.Concat(_missingExplorerDirectories)
+            : _originalScope?.Directories ?? _explorerDirectories ?? [];
         var picker = await Task.Run(() => new DirectoryPicker(paths), token);
         token.ThrowIfCancellationRequested();
         SetPicker(picker, selected);
@@ -321,15 +326,25 @@ public partial class SparseWorktreeWindow : Window
 
     private void SetPicker(DirectoryPicker picker, IEnumerable<string> selected)
     {
+        var first = _picker is null;
         if (_picker is not null)
             _picker.SelectionChanged -= SelectionChanged;
         _picker = picker;
-        _picker.SelectionChanged += SelectionChanged;
         var missing = _picker.SelectDirectories(selected);
+        _picker.SelectionChanged += SelectionChanged;
+        _missingExplorerDirectories = _explorerDirectories is null ? [] : missing;
         DirectoryTree.ItemsSource = _picker.Roots;
         RenderSearch();
         if (missing.Length > 0)
-            Feedback.Content = $"当前提交缺少 {missing.Length} 个目录，已跳过：{string.Join("、", missing)}";
+        {
+            Feedback.Content = _explorerDirectories is null
+                ? $"当前提交缺少 {missing.Length} 个目录，已跳过：{string.Join("、", missing)}"
+                : $"当前提交缺少以下目录，请调整勾选后再创建：{string.Join("、", missing)}";
+        }
+        else if (first && _explorerDirectories is { Count: 0 })
+        {
+            Feedback.Content = "已从工作区根目录打开。请勾选要检出的目录。";
+        }
     }
 
     private async void ReuseScope(object sender, RoutedEventArgs e)
@@ -346,14 +361,23 @@ public partial class SparseWorktreeWindow : Window
         });
     }
 
-    private void SelectionChanged(object? sender, EventArgs e) => UpdateSelection();
+    private void SelectionChanged(object? sender, EventArgs e)
+    {
+        if (_missingExplorerDirectories.Length > 0)
+        {
+            _missingExplorerDirectories = [];
+            Feedback.Content = "";
+        }
+        UpdateSelection();
+    }
 
     private void UpdateSelection()
     {
         var selected = _picker?.Selected ?? [];
         SelectionHeading.Text = $"已选目录（{selected.Length}）";
         SelectionList.ItemsSource = selected;
-        SubmitButton.IsEnabled = !_working && _commit is not null && (_target is null ||
+        SubmitButton.IsEnabled = !_working && _commit is not null &&
+            (_explorerDirectories is null || selected.Length > 0 && _missingExplorerDirectories.Length == 0) && (_target is null ||
             _originalScope is not null && !selected.SequenceEqual(_originalScope.Directories));
         ReuseButton.IsEnabled = _commit is not null && ReuseSources.HasItems;
     }

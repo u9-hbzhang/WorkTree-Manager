@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using WorkTree.Core;
+using WorkTree.Desktop.Explorer;
 using WorkTree.Git;
 
 namespace WorkTree.Desktop.ViewModels;
@@ -116,7 +117,7 @@ internal sealed class MainViewModel : Bindable, IDisposable
         }
     }
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(bool loadSelected = true)
     {
         try
         {
@@ -149,9 +150,69 @@ internal sealed class MainViewModel : Bindable, IDisposable
             NotifyCapabilities();
         }
 
-        if (!_disposed)
+        if (!_disposed && loadSelected)
             await LoadSelectedOnceAsync();
     }
+
+    internal async Task<string[]?> OpenExplorerSelectionAsync(ExplorerRequest request)
+    {
+        if (_git is null || _busy)
+        {
+            ShowExplorerError(_git is null ? "请先在设置中配置 Git。" : "请等待当前操作完成后重试。");
+            return null;
+        }
+
+        _busy = true;
+        NotifyCapabilities();
+        try
+        {
+            if (!request.Create && request.Folders.Length != 1)
+                throw new GitException("请只选中一个目录来查看工作区。");
+
+            var reader = new GitRepositoryReader(_git);
+            var (repository, snapshot, source, directories) =
+                await reader.OpenDirectorySelectionAsync(request.Folders, _lifetime.Token);
+            var existing = Repositories.FirstOrDefault(item => Paths.Equals(item.CommonDirectory, repository.CommonDirectory));
+            if (existing is null)
+            {
+                var updated = Repositories.Append(repository).ToArray();
+                if (_settingsValid)
+                    await SaveSettingsAsync(_settings with { Repositories = updated, SelectedRepository = repository.CommonDirectory });
+                UpdateRepositories(updated, repository);
+            }
+            else if (existing != SelectedRepository)
+            {
+                SelectWithoutReload(existing);
+            }
+
+            var selected = existing ?? repository;
+            Search = "";
+            ShowRepositorySelection();
+            var list = GetList(selected);
+            var known = list.Rows.FirstOrDefault(row => Paths.Equals(row.PathText, source.Path));
+            // Reuse a loaded list unless the selected worktree is new to it.
+            if (!list.HasRequestedLoad || known?.Entry != source)
+            {
+                list.Refresh?.Cancel();
+                await LoadSnapshotAsync(reader, selected, snapshot, source.Path);
+            }
+
+            SelectedWorktree = list.Rows.FirstOrDefault(row => Paths.Equals(row.PathText, source.Path));
+            if (SelectedWorktree is null)
+                throw new GitException("无法在列表中定位所选目录的工作区。");
+            Message = "";
+            return directories;
+        }
+        catch (OperationCanceledException) when (_disposed) { return null; }
+        catch (Exception ex) when (IsUserFacing(ex)) { ShowExplorerError(ex.Message); return null; }
+        finally
+        {
+            _busy = false;
+            NotifyCapabilities();
+        }
+    }
+
+    internal void ShowExplorerError(string message) => Report("无法从资源管理器打开 WorkTree。" + Environment.NewLine + message);
 
     public async Task AddOrRelocateAsync(string folder, RepositoryLocation? replace)
     {
@@ -271,7 +332,7 @@ internal sealed class MainViewModel : Bindable, IDisposable
         catch (Exception ex) when (IsUserFacing(ex)) { Report($"无法启动 {tool.Name}。请检查设置中的程序路径。", ex); }
     }
 
-    public SparseWorktreeWindow? OpenSparseEditor(bool adjust)
+    public SparseWorktreeWindow? OpenSparseEditor(bool adjust, IReadOnlyList<string>? directories = null)
     {
         if (!CanCreateWorktree || _git is null || SelectedRepository is not { } repository
             || (adjust && SelectedWorktree?.CanAdjustScope != true))
@@ -280,7 +341,7 @@ internal sealed class MainViewModel : Bindable, IDisposable
         var rows = GetList(repository).Rows;
         return new SparseWorktreeWindow(repository, _git, SelectedWorktree?.Entry,
             adjust ? SelectedWorktree?.Entry : null, rows.Select(row => row.Entry),
-            rows.Where(row => row.CanReuseScope).Select(row => row.Entry));
+            rows.Where(row => row.CanReuseScope).Select(row => row.Entry), directories);
     }
 
     public WorktreeCleanupWindow? OpenCleanupEditor(bool prune)
@@ -401,10 +462,11 @@ internal sealed class MainViewModel : Bindable, IDisposable
         await LoadSnapshotAsync(new GitRepositoryReader(_git), repository, null);
     }
 
-    private async Task LoadSnapshotAsync(GitRepositoryReader reader, RepositoryLocation repository, WorktreeSnapshot? initial)
+    private async Task LoadSnapshotAsync(GitRepositoryReader reader, RepositoryLocation repository, WorktreeSnapshot? initial,
+        string? selectPath = null)
     {
         var list = GetList(repository);
-        if (list.Refresh is not null)
+        if (list.Refresh is { IsCancellationRequested: false })
             return;
 
         using var refresh = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -430,7 +492,11 @@ internal sealed class MainViewModel : Bindable, IDisposable
             }).ToArray();
             list.Rows = rows;
             if (SelectedRepository == repository)
+            {
                 ShowRows(rows, entriesChanged);
+                if (selectPath is not null)
+                    SelectedWorktree = rows.FirstOrDefault(row => Paths.Equals(row.PathText, selectPath));
+            }
             SetCaption(repository, list, $"{rows.Length} 个工作区 · 正在检查状态…");
             try { await _store.SaveSnapshotAsync(repository, snapshot); }
             catch (Exception ex) when (IsUserFacing(ex)) { Report("列表已读取，无法写入本地缓存。", ex); }
@@ -449,7 +515,8 @@ internal sealed class MainViewModel : Bindable, IDisposable
         }
         finally
         {
-            list.Refresh = null;
+            if (list.Refresh == refresh)
+                list.Refresh = null;
             NotifyCapabilities();
         }
     }

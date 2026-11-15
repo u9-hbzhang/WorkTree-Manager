@@ -9,6 +9,30 @@ namespace WorkTree.Tests;
 public sealed class GitRepositoryReaderTests
 {
     [Fact]
+    public async Task ResolvesOneDirectorySelectionFromTheSameLinkedWorktree()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        var token = timeout.Token;
+        using var fixture = await SparseWorktreeServiceTests.Fixture.CreateAsync(token);
+        var linked = Path.Combine(fixture.Root, "关联工作区");
+        await fixture.GitAsync("worktree", "add", "-b", "explorer-topic", linked);
+        var reader = new GitRepositoryReader(fixture.Installation);
+        var first = Path.Combine(linked, "业务 A", "Child");
+        var second = Path.Combine(linked, "Shared");
+        var selection = await reader.OpenDirectorySelectionAsync([first, second, first], token);
+        Assert.Equal("explorer-topic", selection.Source.Branch);
+        Assert.Equal(linked, selection.Source.Path);
+        Assert.Equal(fixture.Main, selection.Repository.MainPath);
+        Assert.Equal(["Shared", "业务 A/Child"], selection.Directories);
+        var root = await reader.OpenDirectorySelectionAsync([linked], token);
+        Assert.Empty(root.Directories);
+        await Assert.ThrowsAsync<GitException>(() =>
+            reader.OpenDirectorySelectionAsync([first, Path.Combine(fixture.Main, "Shared")], token));
+        await Assert.ThrowsAsync<GitException>(() =>
+            reader.OpenDirectorySelectionAsync([Path.Combine(linked, "root.txt")], token));
+    }
+
+    [Fact]
     public async Task ReadsMainLinkedDetachedLockedAndMissingTrees()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));

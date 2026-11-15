@@ -18,6 +18,43 @@ public sealed class GitRepositoryReader(GitInstallation installation)
         return (new RepositoryLocation(snapshot.Entries[0].Path, common, selected?.Path ?? folder), snapshot);
     }
 
+    public async Task<(RepositoryLocation Repository, WorktreeSnapshot Snapshot, WorktreeEntry Source, string[] Directories)>
+        OpenDirectorySelectionAsync(IReadOnlyList<string> folders, CancellationToken token)
+    {
+        if (folders.Count == 0)
+            throw new GitException("请在资源管理器中选择目录。");
+
+        string? root = null;
+        var directories = new HashSet<string>(Paths);
+        foreach (var folder in folders)
+        {
+            if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder))
+                throw new GitException($"所选项目不是可访问的目录：{folder}");
+
+            var result = await RunAsync(folder, token, "rev-parse", "--show-toplevel").ConfigureAwait(false);
+            if (result.ExitCode != 0)
+                throw new GitException($"无法识别目录所属的 Git 工作区：{folder}{Environment.NewLine}{result.Error.Trim()}");
+            var current = NormalizePath(result.Output.TrimEnd('\r', '\n'));
+            root ??= current;
+            if (!Paths.Equals(current, root))
+                throw new GitException("所选目录来自不同的仓库或工作区。请只选择同一个工作区中的目录。");
+
+            var relative = Path.GetRelativePath(root, NormalizePath(folder)).Replace('\\', '/');
+            if (relative == ".")
+                continue;
+            if (!ConeScope.IsDirectoryPath(relative))
+                throw new GitException($"无法将所选目录转换为 Git 目录：{folder}");
+            directories.Add(relative);
+        }
+
+        var (repository, snapshot) = await OpenAsync(root!, token).ConfigureAwait(false);
+        var source = snapshot.Entries.FirstOrDefault(entry => Paths.Equals(entry.Path, root) &&
+            !entry.IsBare && !entry.IsPrunable);
+        if (source is null)
+            throw new GitException("无法在 Git 登记中找到所选目录的工作区。");
+        return (repository, snapshot, source, directories.Order(StringComparer.Ordinal).ToArray());
+    }
+
     public async Task<WorktreeSnapshot> RefreshAsync(RepositoryLocation repository, CancellationToken token)
     {
         Exception? lastError = null;

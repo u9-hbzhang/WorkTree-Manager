@@ -17,6 +17,15 @@
 - 在 **设置** 中指定 Git 路径或添加开发工具。例如为 VS Code 选择 `Code.exe`，将 `--new-window` 和 `{worktree}` 分别填入两行参数。
 - 在详情中可按需统计工作文件大小。统计跳过工作区根目录的 `.git`、链接和无法读取的项。
 
+## 从资源管理器打开
+
+在 **设置** 中勾选 **启用资源管理器右键菜单** 并保存。随后右击目录，在 Windows 11 中选择 **显示更多选项 → WorkTree**。
+
+- **从所选目录创建稀疏工作区…** 支持一次选择同一工作区中的多个目录。所有目录带入同一个创建窗口，默认从来源工作区当前提交开始。选择工作区根目录时，请在窗口里勾选具体范围。
+- **查看此仓库的工作区** 支持单选，会打开仓库并选中目录所属的工作区。
+
+右键菜单只为当前 Windows 用户注册。移动便携包前先退出程序，从新位置运行 `WorkTree.exe`，保持选项勾选并保存，即可更新注册路径。取消勾选并保存可移除菜单。
+
 ## 创建和调整稀疏工作区
 
 ![创建窗口从已有工作区复用 App/Inventory 和 Shared 两个目录](docs/images/sparse-create.jpg)
@@ -54,11 +63,11 @@ dotnet test .\WorkTree.slnx
 
 ## 发布新版本
 
-在要发布的提交上创建并推送版本标签，例如：
+更新 `Directory.Build.props` 中的版本，并将发布说明保存为 `.github/release-notes/<标签>.md`。提交后创建并推送版本标签，例如：
 
 ```powershell
-git tag -a v0.2 -m "WorkTree Manager v0.2"
-git push origin v0.2
+git tag -a v0.3 -m "WorkTree Manager v0.3"
+git push origin v0.3
 ```
 
-GitHub Actions 会测试标签指向的提交。测试通过后，使用标签设置程序版本，生成不含 .NET 运行时的 ZIP，并发布到对应的 GitHub Release。支持 `v0.2` 和 `v0.2.1` 这类标签。也可以在 **Actions → Release → Run workflow** 手动验证测试和打包，手动运行只执行验证。
+GitHub Actions 会测试标签指向的提交。测试通过后，使用标签设置程序版本，生成不含 .NET 运行时的 ZIP，并将对应的 Markdown 发布说明附到 GitHub Release。支持 `v0.3` 和 `v0.3.1` 这类标签。也可以在 **Actions → Release → Run workflow** 手动验证测试和打包。

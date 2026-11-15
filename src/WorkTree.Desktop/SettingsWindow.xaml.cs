@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using WorkTree.Core;
+using WorkTree.Desktop.Explorer;
 using WorkTree.Desktop.ViewModels;
 
 namespace WorkTree.Desktop;
@@ -20,6 +21,18 @@ public partial class SettingsWindow : Window
         GitPathBox.Text = viewModel.ConfiguredGitPath ?? "";
         GitHint.Text = "留空时自动查找本机 Git。"
             + (viewModel.GitExecutable is { } executable ? $" 当前使用 {executable}" : "");
+        try
+        {
+            var (enabled, needsRepair) = ExplorerMenu.GetState();
+            ExplorerMenuEnabled.IsChecked = enabled;
+            if (needsRepair)
+                ExplorerMenuHint.Text = "右键菜单仍指向旧位置。保持勾选并保存即可重新注册。";
+        }
+        catch (Exception ex) when (IsExplorerRegistrationError(ex))
+        {
+            ExplorerMenuEnabled.IsEnabled = false;
+            ExplorerMenuHint.Text = $"无法读取右键菜单状态。{ex.Message}";
+        }
         foreach (var tool in viewModel.Tools)
             _tools.Add(new ToolDraft(tool));
         ToolList.ItemsSource = _tools;
@@ -85,6 +98,7 @@ public partial class SettingsWindow : Window
 
         Validation.Tag = null;
         Validation.Content = "正在保存…";
+        bool? explorerMenu = ExplorerMenuEnabled.IsEnabled ? ExplorerMenuEnabled.IsChecked : null;
         _saving = true;
         IsEnabled = false;
         bool saved;
@@ -92,6 +106,19 @@ public partial class SettingsWindow : Window
         {
             var gitPath = GitPathBox.Text.Trim();
             saved = await _viewModel.ApplySettingsAsync(gitPath.Length == 0 ? null : gitPath, tools);
+            if (saved && explorerMenu is { } desired)
+            {
+                var state = ExplorerMenu.GetState();
+                if (desired != state.Enabled || (desired && state.NeedsRepair))
+                    ExplorerMenu.SetEnabled(desired);
+                ((App)Application.Current).UpdateExplorerServer();
+            }
+        }
+        catch (Exception ex) when (IsExplorerRegistrationError(ex))
+        {
+            Validation.Tag = "Error";
+            Validation.Content = $"无法更新资源管理器右键菜单。{ex.Message}";
+            return;
         }
         finally
         {
@@ -107,6 +134,9 @@ public partial class SettingsWindow : Window
             Validation.Content = _viewModel.Message;
         }
     }
+
+    private static bool IsExplorerRegistrationError(Exception ex) => ex is IOException or UnauthorizedAccessException
+        or System.Security.SecurityException or System.Runtime.InteropServices.COMException;
 }
 
 internal sealed class ToolDraft(ExternalTool tool) : Bindable
