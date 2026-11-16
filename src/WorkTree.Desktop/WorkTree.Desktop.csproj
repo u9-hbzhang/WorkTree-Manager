@@ -5,11 +5,28 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>WorkTree</AssemblyName>
     <Product>WorkTree Manager</Product>
+    <ApplicationIcon>Assets/WorkTree.ico</ApplicationIcon>
     <SelfContained>false</SelfContained>
     <RollForward>LatestPatch</RollForward>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="Assets/WorkTree.ico" />
     <ProjectReference Include="../WorkTree.Core/WorkTree.Core.csproj" />
     <ProjectReference Include="../WorkTree.Git/WorkTree.Git.csproj" />
   </ItemGroup>
+  <Target Name="UpdateLocalDist" AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' and '$(CI)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(DeployLocalDist)' != 'false' and '$(SelfContained)' != 'true' and '$(UseAppHost)' == 'true'">
+    <PropertyGroup>
+      <LocalDistDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'artifacts', 'dist'))</LocalDistDirectory>
+    </PropertyGroup>
+    <!-- Copy the executable first so a running copy in dist stops deployment before DLLs are updated. -->
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).exe" DestinationFolder="$(LocalDistDirectory)"
+          Retries="0" />
+    <Copy SourceFiles="$(TargetPath);$(ProjectDepsFilePath);$(ProjectRuntimeConfigFilePath)"
+          DestinationFolder="$(LocalDistDirectory)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ReferenceCopyLocalPaths->'$(TargetDir)%(DestinationSubDirectory)%(Filename)%(Extension)')"
+          DestinationFiles="@(ReferenceCopyLocalPaths->'$(LocalDistDirectory)%(DestinationSubDirectory)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Message Text="Local WorkTree: $(LocalDistDirectory)$(AssemblyName).exe" Importance="high" />
+  </Target>
 </Project>

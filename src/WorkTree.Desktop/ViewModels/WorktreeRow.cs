@@ -25,6 +25,8 @@ internal sealed class WorktreeRow(WorktreeEntry entry) : Bindable
     public bool CanAdjustScope => !Entry.IsMain && !Entry.IsLocked && !Entry.IsPrunable && CanOpen
         && _details.Mode is SparseMode.Unknown or SparseMode.Cone;
     public bool CanRemove => !Entry.IsMain && !Entry.IsLocked && !Entry.IsPrunable && CanOpen;
+    public bool CanPruneRegistration => !Entry.IsMain && !Entry.IsBare && !Entry.IsLocked && Entry.IsPrunable
+        && _details.Availability == WorktreeAvailability.Missing;
     public bool CanReuseScope => CanOpen && _details.Mode is SparseMode.Unknown or SparseMode.Cone;
 
     public string Mode => _details.Mode switch

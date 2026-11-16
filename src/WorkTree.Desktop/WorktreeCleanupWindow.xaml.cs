@@ -36,6 +36,8 @@ public partial class WorktreeCleanupWindow : Window
         Title = Heading.Text = target is null ? "清理失效登记" : "删除工作区";
         TargetPath.Text = target?.Path ?? repository.MainPath;
         BranchOptions.Visibility = target is null ? Visibility.Collapsed : Visibility.Visible;
+        if (target is null)
+            Summary.Text = "确认后将清理当前仓库中预览列出的所有失效登记，并保留本地分支。";
         RunButton.Content = Title;
         Loaded += Initialize;
         Closing += (_, e) => e.Cancel = _writing;
@@ -110,7 +112,6 @@ public partial class WorktreeCleanupWindow : Window
             var preview = await Task.Run(() => _service.PreviewPruneAsync(_repository, token), token);
             token.ThrowIfCancellationRequested();
             _prune = preview;
-            Summary.Text = "此操作清理整个仓库中已确认失效的 Git 登记，保留本地分支。";
             ListHeading.Text = preview.Entries.Count == 0
                 ? "没有可清理的失效登记。"
                 : $"将清理的登记（{preview.Entries.Count} 条）";

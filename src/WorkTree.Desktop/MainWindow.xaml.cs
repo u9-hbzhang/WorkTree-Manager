@@ -105,7 +105,8 @@ public partial class MainWindow : Window
 
     private async void PruneWorktrees(object sender, RoutedEventArgs e) => await OpenCleanupAsync(prune: true);
 
-    private async void DeleteWorktree(object sender, RoutedEventArgs e) => await OpenCleanupAsync(prune: false);
+    private async void CleanupSelectedWorktree(object sender, RoutedEventArgs e) =>
+        await OpenCleanupAsync(prune: _viewModel.SelectedWorktree?.CanPruneRegistration == true);
 
     private async Task OpenCleanupAsync(bool prune)
     {
